@@ -443,7 +443,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton(
                     "📎 Язык",
                     callback_data="language"
-                ],
+                )
             ],
             [
                 InlineKeyboardButton(
