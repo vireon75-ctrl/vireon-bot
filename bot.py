@@ -3,16 +3,32 @@ from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
-    ContextTypes
+    ContextTypes,
+    MessageHandler,
+    filters
 )
 import random
 import os
+from openai import OpenAI
+
 
 # =========================
 # BOT TOKEN
 # =========================
 
-TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU"
+TOKEN = "8834192376:AAGreKnNbvvSDMVDlgx0sqDy_Rcr7yMcP3c"
+
+
+# =========================
+# OPENAI API KEY
+# =========================
+
+OPENAI_API_KEY = "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"
+
+client = OpenAI(
+    api_key=OPENAI_API_KEY
+)
+
 
 # =========================
 # PDF ФАЙЛ
@@ -20,11 +36,20 @@ TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU"
 
 PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf"
 
+
 # =========================
 # ҚОЛДАНУШЫЛАР
 # =========================
 
 users = {}
+
+
+# =========================
+# CHATGPT РЕЖИМІНДЕГІ
+# ҚОЛДАНУШЫЛАР
+# =========================
+
+ai_users = set()
 
 
 # =========================
@@ -54,6 +79,12 @@ def main_menu():
         ],
         [
             InlineKeyboardButton(
+                "🤖 ChatGPT",
+                callback_data="ai_chat"
+            )
+        ],
+        [
+            InlineKeyboardButton(
                 "📎 Тіл",
                 callback_data="language"
             )
@@ -78,16 +109,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     if user.id not in users:
+
         users[user.id] = {
             "coins": 0,
             "points": 0,
             "language": "kk"
         }
 
+    # ChatGPT режимінен шығару
+    ai_users.discard(user.id)
+
     await update.message.reply_text(
+
         f"🤖 Vireon ботына қош келдің, "
         f"{user.first_name}!\n\n"
+
         "Төмендегі мәзірден таңда:",
+
         reply_markup=main_menu()
     )
 
@@ -166,7 +204,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             [
                 InlineKeyboardButton(
-                    "🔙 Ойындарға қайту",
+                    "🔙 Басты мәзір",
                     callback_data="home"
                 )
             ]
@@ -193,6 +231,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if result == "🟡 Аверс":
+
             users[user.id]["coins"] += 1
 
         keyboard = [
@@ -233,6 +272,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         number = random.randint(1, 6)
 
         if number >= 4:
+
             users[user.id]["points"] += 1
 
         keyboard = [
@@ -308,13 +348,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(
 
                 "❌ PDF файл табылмады!\n\n"
+
                 "Файл мына папкада болуы керек:\n"
+
                 f"{PDF_PATH}\n\n"
+
                 "Файлдың атауы дәл:\n"
                 "Хранитель персиков.pdf"
             )
 
             return
+
 
         await query.message.reply_text(
 
@@ -322,6 +366,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⏳ Кітап дайындалып жатыр...\n"
             "Бір сәт күте тұр."
         )
+
 
         try:
 
@@ -344,8 +389,47 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(
 
                 "❌ PDF жіберу кезінде қате болды.\n\n"
-                f"Қате: {e}"
+                f"{e}"
             )
+
+
+    # =========================
+    # CHATGPT
+    # =========================
+
+    elif query.data == "ai_chat":
+
+        ai_users.add(user.id)
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "🔙 Басты мәзір",
+                    callback_data="home"
+                )
+            ]
+
+        ]
+
+        await query.edit_message_text(
+
+            "🤖 CHATGPT\n\n"
+
+            "Сәлем! Мен ChatGPT-пін. 😊\n\n"
+
+            "Маған кез келген сұрағыңды жаза бер.\n\n"
+
+            "Мысалы:\n"
+            "• Python туралы сұра\n"
+            "• Математика есептерін сұра\n"
+            "• Мәтін жаздыр\n"
+            "• Бір нәрсені түсіндір\n\n"
+
+            "💬 Сұрағыңды жаза бер:",
+
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
 
     # =========================
@@ -421,36 +505,49 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         users[user.id]["language"] = "ru"
 
         keyboard = [
+
             [
                 InlineKeyboardButton(
                     "👤 Мой профиль",
                     callback_data="profile"
                 )
             ],
+
             [
                 InlineKeyboardButton(
                     "🎮 Игры",
                     callback_data="games"
                 )
             ],
+
             [
                 InlineKeyboardButton(
                     "📚 Библиотека",
                     callback_data="library"
                 )
             ],
+
+            [
+                InlineKeyboardButton(
+                    "🤖 ChatGPT",
+                    callback_data="ai_chat"
+                )
+            ],
+
             [
                 InlineKeyboardButton(
                     "📎 Язык",
                     callback_data="language"
-                ) 
+                )
             ],
+
             [
                 InlineKeyboardButton(
                     "📞 Контакты",
                     callback_data="contact"
                 )
             ]
+
         ]
 
         await query.edit_message_text(
@@ -471,36 +568,49 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         users[user.id]["language"] = "en"
 
         keyboard = [
+
             [
                 InlineKeyboardButton(
                     "👤 My Profile",
                     callback_data="profile"
                 )
             ],
+
             [
                 InlineKeyboardButton(
                     "🎮 Games",
                     callback_data="games"
                 )
             ],
+
             [
                 InlineKeyboardButton(
                     "📚 Library",
                     callback_data="library"
                 )
             ],
+
+            [
+                InlineKeyboardButton(
+                    "🤖 ChatGPT",
+                    callback_data="ai_chat"
+                )
+            ],
+
             [
                 InlineKeyboardButton(
                     "📎 Language",
                     callback_data="language"
-                ) 
+                )
             ],
+
             [
                 InlineKeyboardButton(
                     "📞 Contact",
                     callback_data="contact"
                 )
             ]
+
         ]
 
         await query.edit_message_text(
@@ -532,6 +642,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
 
             "📞 БАЙЛАНЫС\n\n"
+
             "Сұрақтарың болса, "
             "админге жаза аласың.",
 
@@ -545,6 +656,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "home":
 
+        # ChatGPT режимінен шығу
+        ai_users.discard(user.id)
+
         await query.edit_message_text(
 
             "🏠 БАСТЫ МӘЗІР\n\n"
@@ -554,20 +668,138 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-# =========================
+# ==================================================
+# CHATGPT-ТЕН ЖАУАП АЛУ
+# ==================================================
+
+async def ai_message(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    user = update.effective_user
+
+    # Егер ChatGPT режимі қосылмаған болса,
+    # қарапайым хабарламаларды елемейміз.
+
+    if user.id not in ai_users:
+
+        return
+
+
+    text = update.message.text.strip()
+
+    if not text:
+
+        return
+
+
+    # =========================
+    # ОЙЛАНЫП ЖАТЫР
+    # =========================
+
+    thinking = await update.message.reply_text(
+        "🤖 Ойланып жатырмын..."
+    )
+
+
+    try:
+
+        response = client.responses.create(
+
+            model="gpt-5",
+
+            input=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Сен Vireon Telegram ботындағы "
+                        "ChatGPT көмекшісісің. "
+                        "Пайдаланушы қай тілде жазса, "
+                        "сол тілде жауап бер. "
+                        "Жауапты түсінікті және пайдалы бер."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": text
+                }
+            ]
+
+        )
+
+
+        answer = response.output_text
+
+
+        # Telegram хабарлама лимитінен асып кетсе,
+        # бірнеше бөлікке бөлеміз.
+
+        max_length = 4000
+
+        if len(answer) <= max_length:
+
+            await thinking.edit_text(
+                "🤖 " + answer
+            )
+
+        else:
+
+            await thinking.delete()
+
+            for i in range(0, len(answer), max_length):
+
+                part = answer[i:i + max_length]
+
+                await update.message.reply_text(
+                    "🤖 " + part
+                )
+
+
+    except Exception as e:
+
+        await thinking.edit_text(
+
+            "❌ ChatGPT жауап бере алмады.\n\n"
+
+            "Мыналарды тексер:\n"
+            "1️⃣ OpenAI API key дұрыс па?\n"
+            "2️⃣ Интернет бар ма?\n"
+            "3️⃣ API аккаунтыңда модельді қолдану мүмкіндігі бар ма?\n\n"
+
+            f"Техникалық қате:\n{e}"
+        )
+
+
+# ==================================================
 # БОТТЫ ІСКЕ ҚОСУ
-# =========================
+# ==================================================
 
 app = Application.builder().token(TOKEN).build()
+
 
 app.add_handler(
     CommandHandler("start", start)
 )
 
+
 app.add_handler(
     CallbackQueryHandler(button)
 )
 
-print("Vireon бот іске қосылды! 🚀")
+
+# Қарапайым мәтіндерді ChatGPT-ке жіберу
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        ai_message
+    )
+)
+
+
+print(
+    "Vireon + ChatGPT бот іске қосылды! 🚀"
+)
+
 
 app.run_polling()
