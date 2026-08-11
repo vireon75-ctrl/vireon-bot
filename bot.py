@@ -132,3 +132,78 @@ app.add_handler(CallbackQueryHandler(button))
 
 print("Vireon бот іске қосылды! 🚀")
 app.run_polling()
+import telebot
+from telebot import types
+import os
+
+TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU" 
+ "
+
+bot = telebot.TeleBot(TOKEN)
+
+PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf"
+
+
+@bot.message_handler(commands=["start"])
+def start(message):
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+    library = types.KeyboardButton("📚 Кітапхана")
+    keyboard.add(library)
+
+    bot.send_message(
+        message.chat.id,
+        "Сәлем! 👋\nКітап оқу үшін төмендегі батырманы бас:",
+        reply_markup=keyboard
+    )
+
+
+@bot.message_handler(func=lambda message: message.text == "📚 Кітапхана")
+def library(message):
+    keyboard = types.InlineKeyboardMarkup()
+
+    book = types.InlineKeyboardButton(
+        "📖 Хранитель персиков",
+        callback_data="book_peach"
+    )
+
+    keyboard.add(book)
+
+    bot.send_message(
+        message.chat.id,
+        "📚 Кітапхана:\n\nКітапты таңда:",
+        reply_markup=keyboard
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "book_peach")
+def send_book(call):
+
+    if not os.path.exists(PDF_PATH):
+        bot.answer_callback_query(call.id)
+
+        bot.send_message(
+            call.message.chat.id,
+            "❌ PDF файл табылмады.\n\n"
+            "Файлдың орналасқан жерін тексер."
+        )
+        return
+
+    bot.answer_callback_query(call.id)
+
+    bot.send_message(
+        call.message.chat.id,
+        "📖 Хранитель персиков\n\n"
+        "Кітабың дайын, оқи бер! 😊"
+    )
+
+    with open(PDF_PATH, "rb") as pdf:
+        bot.send_document(
+            call.message.chat.id,
+            pdf,
+            caption="📖 Хранитель персиков"
+        )
+
+
+print("🤖 Бот іске қосылды!")
+bot.infinity_polling()
