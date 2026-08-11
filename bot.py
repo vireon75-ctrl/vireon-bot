@@ -134,10 +134,7 @@ print("Vireon бот іске қосылды! 🚀")
 app.run_polling()
 import telebot from telebot import types
 import os
-
 TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU" 
- "
-
 bot = telebot.TeleBot(TOKEN)
 
 PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf"
