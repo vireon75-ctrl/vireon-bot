@@ -13,7 +13,7 @@ import os
 # BOT TOKEN
 # =========================
 
-TOKEN = "ЖАҢА_TOKEN_ОСЫ_ЖЕРГЕ"
+TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU"
 
 
 # =========================
