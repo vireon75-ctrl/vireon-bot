@@ -450,8 +450,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "📞 Контакты",
                     callback_data="contact"
                 )
-            ]
-        ]
+            ], 
+            [
 
         await query.edit_message_text(
 
