@@ -8,13 +8,11 @@ from telegram.ext import (
 import random
 import os
 
-
 # =========================
 # BOT TOKEN
 # =========================
 
 TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU"
-
 
 # =========================
 # PDF ФАЙЛ
@@ -22,13 +20,11 @@ TOKEN = "8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU"
 
 PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf"
 
-
 # =========================
 # ҚОЛДАНУШЫЛАР
 # =========================
 
 users = {}
-
 
 # =========================
 # БАСТЫ МӘЗІР
@@ -75,7 +71,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
     if user.id not in users:
-
         users[user.id] = {
             "coins": 0,
             "points": 0
@@ -103,7 +98,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     user = query.from_user
-
 
     if user.id not in users:
 
@@ -193,11 +187,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ["🟡 Аверс", "⚪ Реверс"]
         )
 
-
         if result == "🟡 Аверс":
 
             users[user.id]["coins"] += 1
-
 
         keyboard = [
 
@@ -216,7 +208,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
 
         ]
-
 
         await query.edit_message_text(
 
@@ -239,11 +230,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         number = random.randint(1, 6)
 
-
         if number >= 4:
 
             users[user.id]["points"] += 1
-
 
         keyboard = [
 
@@ -262,7 +251,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
 
         ]
-
 
         await query.edit_message_text(
 
@@ -301,7 +289,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         ]
 
-
         await query.edit_message_text(
 
             "📚 КІТАПХАНА\n\n"
@@ -317,34 +304,61 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "book_peach":
 
-        if not os.path.exists(PDF_PATH):
+        # PDF бар-жоғын тексеру
+
+        if not os.path.isfile(PDF_PATH):
 
             await query.message.reply_text(
 
                 "❌ PDF файл табылмады!\n\n"
 
-                "Файл мына жерде болуы керек:\n"
+                "Файл мына папкада болуы керек:\n"
 
-                f"{PDF_PATH}"
+                f"{PDF_PATH}\n\n"
+
+                "Файлдың атауы дәл:\n"
+                "Хранитель персиков.pdf"
             )
 
             return
 
 
+        # Файлдың көлемін тексеру
+
+        file_size = os.path.getsize(PDF_PATH)
+
         await query.message.reply_text(
 
             "📖 Хранитель персиков\n\n"
-            "Кітабың дайын! 😊"
+            "⏳ Кітап дайындалып жатыр...\n"
+            "Бір сәт күте тұр."
         )
 
 
-        with open(PDF_PATH, "rb") as pdf:
+        # PDF-ті Telegram-ға жіберу
 
-            await query.message.reply_document(
+        try:
 
-                document=pdf,
+            with open(PDF_PATH, "rb") as pdf:
 
-                caption="📖 Хранитель персиков"
+                await query.message.reply_document(
+
+                    document=pdf,
+
+                    filename="Хранитель персиков.pdf",
+
+                    caption=(
+                        "📖 Хранитель персиков\n\n"
+                        "📚 Толық PDF кітап"
+                    )
+                )
+
+        except Exception as e:
+
+            await query.message.reply_text(
+
+                "❌ PDF жіберу кезінде қате болды.\n\n"
+                f"Қате: {e}"
             )
 
 
@@ -364,7 +378,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
 
         ]
-
 
         await query.edit_message_text(
 
@@ -398,7 +411,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app = Application.builder().token(TOKEN).build()
 
-
 app.add_handler(
     CommandHandler("start", start)
 )
@@ -407,8 +419,6 @@ app.add_handler(
     CallbackQueryHandler(button)
 )
 
-
 print("Vireon бот іске қосылды! 🚀")
 
-
-app.run_polling()                
+app.run_polling()            
