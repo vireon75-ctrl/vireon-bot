@@ -26,6 +26,7 @@ PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf
 
 users = {}
 
+
 # =========================
 # БАСТЫ МӘЗІР
 # =========================
@@ -53,6 +54,12 @@ def main_menu():
         ],
         [
             InlineKeyboardButton(
+                "📎 Тіл",
+                callback_data="language"
+            )
+        ],
+        [
+            InlineKeyboardButton(
                 "📞 Байланыс",
                 callback_data="contact"
             )
@@ -73,16 +80,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user.id not in users:
         users[user.id] = {
             "coins": 0,
-            "points": 0
+            "points": 0,
+            "language": "kk"
         }
 
     await update.message.reply_text(
-
         f"🤖 Vireon ботына қош келдің, "
         f"{user.first_name}!\n\n"
-
         "Төмендегі мәзірден таңда:",
-
         reply_markup=main_menu()
     )
 
@@ -103,7 +108,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         users[user.id] = {
             "coins": 0,
-            "points": 0
+            "points": 0,
+            "language": "kk"
         }
 
 
@@ -127,7 +133,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
 
             f"👤 СЕНІҢ ПРОФИЛІҢ\n\n"
-
             f"🏷 Атың: {user.first_name}\n"
             f"🆔 ID: {user.id}\n"
             f"⭐ Ұпай: {data['points']}\n"
@@ -161,7 +166,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             [
                 InlineKeyboardButton(
-                    "🔙 Басты мәзір",
+                    "🔙 Ойындарға қайту",
                     callback_data="home"
                 )
             ]
@@ -188,7 +193,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if result == "🟡 Аверс":
-
             users[user.id]["coins"] += 1
 
         keyboard = [
@@ -212,9 +216,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
 
             f"🪙 Монета лақтырылды!\n\n"
-
             f"Нәтиже: {result}\n"
-
             f"🪙 Монетаң: "
             f"{users[user.id]['coins']}",
 
@@ -231,7 +233,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         number = random.randint(1, 6)
 
         if number >= 4:
-
             users[user.id]["points"] += 1
 
         keyboard = [
@@ -255,9 +256,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
 
             f"🎲 Кубик лақтырылды!\n\n"
-
             f"Нәтиже: {number}\n"
-
             f"⭐ Ұпайың: "
             f"{users[user.id]['points']}",
 
@@ -304,28 +303,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "book_peach":
 
-        # PDF бар-жоғын тексеру
-
         if not os.path.isfile(PDF_PATH):
 
             await query.message.reply_text(
 
                 "❌ PDF файл табылмады!\n\n"
-
                 "Файл мына папкада болуы керек:\n"
-
                 f"{PDF_PATH}\n\n"
-
                 "Файлдың атауы дәл:\n"
                 "Хранитель персиков.pdf"
             )
 
             return
-
-
-        # Файлдың көлемін тексеру
-
-        file_size = os.path.getsize(PDF_PATH)
 
         await query.message.reply_text(
 
@@ -333,9 +322,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⏳ Кітап дайындалып жатыр...\n"
             "Бір сәт күте тұр."
         )
-
-
-        # PDF-ті Telegram-ға жіберу
 
         try:
 
@@ -363,6 +349,170 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     # =========================
+    # ТІЛ МӘЗІРІ
+    # =========================
+
+    elif query.data == "language":
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "🇰🇿 Қазақша",
+                    callback_data="lang_kk"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "🇷🇺 Русский",
+                    callback_data="lang_ru"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "🇬🇧 English",
+                    callback_data="lang_en"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "🔙 Басты мәзір",
+                    callback_data="home"
+                )
+            ]
+
+        ]
+
+        await query.edit_message_text(
+
+            "📎 ТІЛ ТАҢДАУ\n\n"
+            "Қай тілді таңдайсың?",
+
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+    # =========================
+    # ҚАЗАҚША
+    # =========================
+
+    elif query.data == "lang_kk":
+
+        users[user.id]["language"] = "kk"
+
+        await query.edit_message_text(
+
+            "🇰🇿 Қазақ тілі таңдалды!\n\n"
+            "Тілді сәтті өзгерттің.",
+
+            reply_markup=main_menu()
+        )
+
+
+    # =========================
+    # РУССКИЙ
+    # =========================
+
+    elif query.data == "lang_ru":
+
+        users[user.id]["language"] = "ru"
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "👤 Мой профиль",
+                    callback_data="profile"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🎮 Игры",
+                    callback_data="games"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📚 Библиотека",
+                    callback_data="library"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📎 Язык",
+                    callback_data="language"
+                ],
+            ],
+            [
+                InlineKeyboardButton(
+                    "📞 Контакты",
+                    callback_data="contact"
+                )
+            ]
+        ]
+
+        await query.edit_message_text(
+
+            "🇷🇺 Русский язык выбран!\n\n"
+            "Язык успешно изменён.",
+
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+    # =========================
+    # ENGLISH
+    # =========================
+
+    elif query.data == "lang_en":
+
+        users[user.id]["language"] = "en"
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "👤 My Profile",
+                    callback_data="profile"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🎮 Games",
+                    callback_data="games"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📚 Library",
+                    callback_data="library"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📎 Language",
+                    callback_data="language"
+                ],
+            ],
+            [
+                InlineKeyboardButton(
+                    "📞 Contact",
+                    callback_data="contact"
+                )
+            ]
+        ]
+
+        await query.edit_message_text(
+
+            "🇬🇧 English selected!\n\n"
+            "Language successfully changed.",
+
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+    # =========================
     # БАЙЛАНЫС
     # =========================
 
@@ -382,7 +532,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
 
             "📞 БАЙЛАНЫС\n\n"
-
             "Сұрақтарың болса, "
             "админге жаза аласың.",
 
@@ -421,4 +570,4 @@ app.add_handler(
 
 print("Vireon бот іске қосылды! 🚀")
 
-app.run_polling()            
+app.run_polling()
