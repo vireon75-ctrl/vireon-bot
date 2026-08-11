@@ -443,15 +443,15 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton(
                     "📎 Язык",
                     callback_data="language"
-                )
+                ) 
             ],
             [
                 InlineKeyboardButton(
                     "📞 Контакты",
                     callback_data="contact"
                 )
-            ], 
-            [
+            ]
+        ]
 
         await query.edit_message_text(
 
@@ -493,7 +493,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton(
                     "📎 Language",
                     callback_data="language"
-                )
+                ) 
             ],
             [
                 InlineKeyboardButton(
