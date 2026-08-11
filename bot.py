@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import random
 
-TOKEN = "ЖАҢА TOKEN-ІҢДІ ОСЫ ЖЕРГЕ ҚОЙ"
+TOKEN ="8834192376:AAG4UVZGw6fMR9x71__iGBz73wcfxm3b_yU" 
 
 # Әр қолданушының мәліметтері
 users = {}
