@@ -493,7 +493,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton(
                     "📎 Language",
                     callback_data="language"
-                ],
+                )
             ],
             [
                 InlineKeyboardButton(
