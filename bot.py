@@ -17,7 +17,7 @@ import psycopg2
 # BOT TOKEN
 # ==================================================
 
-TOKEN = os.getenv("8834192376:AAGreKnNbvvSDMVDlgx0sqDy_Rcr7yMcP3c")
+TOKEN = os.getenv("BOT_TOKEN")
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN табылмады!")
