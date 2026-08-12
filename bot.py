@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+  from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -7,134 +7,926 @@ from telegram.ext import (
     MessageHandler,
     filters
 )
+
 import random
-import os
-from openai import OpenAI
+import sqlite3
 
 
-# =========================
+# ==================================================
 # BOT TOKEN
-# =========================
+# ==================================================
 
-TOKEN = "8834192376:AAGreKnNbvvSDMVDlgx0sqDy_Rcr7yMcP3c"
-
-
-# =========================
-# OPENAI API KEY
-# =========================
-
-OPENAI_API_KEY = "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"
-
-client = OpenAI(
-    api_key=OPENAI_API_KEY
-)
+TOKEN = "СЕНІҢ_TELEGRAM_BOT_TOKEN"
 
 
-# =========================
-# PDF ФАЙЛ
-# =========================
+# ==================================================
+# ADMIN
+# ==================================================
 
-PDF_PATH = "/storage/emulated/0/Download/Хранитель персиков.pdf"
-
-
-# =========================
-# ҚОЛДАНУШЫЛАР
-# =========================
-
-users = {}
+ADMIN_USERNAME = "Sabinanizhansykorem"
 
 
-# =========================
-# CHATGPT РЕЖИМІНДЕГІ
-# ҚОЛДАНУШЫЛАР
-# =========================
+# ==================================================
+# YOUTUBE / TIKTOK
+# ==================================================
+# Кейін өз арнаңның нақты сілтемесін осы жерге қой.
 
-ai_users = set()
+YOUTUBE_URL = "https://youtube.com/"
+TIKTOK_URL = "https://tiktok.com/"
 
 
-# =========================
-# БАСТЫ МӘЗІР
-# =========================
+# ==================================================
+# DATABASE
+# ==================================================
 
-def main_menu():
+DB_NAME = "vireon.db"
+
+
+def init_db():
+
+    conn = sqlite3.connect(DB_NAME)
+
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            profile_name TEXT DEFAULT '',
+            coins INTEGER DEFAULT 0,
+            points INTEGER DEFAULT 0,
+            language TEXT DEFAULT 'kk'
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# ==================================================
+# USER DATABASE
+# ==================================================
+
+def create_user(user_id):
+
+    conn = sqlite3.connect(DB_NAME)
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT user_id FROM users WHERE user_id = ?",
+        (user_id,)
+    )
+
+    exists = cursor.fetchone()
+
+    if not exists:
+
+        cursor.execute(
+            """
+            INSERT INTO users
+            (user_id, profile_name, coins, points, language)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                "",
+                0,
+                0,
+                "kk"
+            )
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def get_user(user_id):
+
+    create_user(user_id)
+
+    conn = sqlite3.connect(DB_NAME)
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT user_id, profile_name, coins, points, language
+        FROM users
+        WHERE user_id = ?
+        """,
+        (user_id,)
+    )
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    return {
+        "user_id": row[0],
+        "profile_name": row[1],
+        "coins": row[2],
+        "points": row[3],
+        "language": row[4]
+    }
+
+
+def update_user(user_id, field, value):
+
+    allowed_fields = [
+        "profile_name",
+        "coins",
+        "points",
+        "language"
+    ]
+
+    if field not in allowed_fields:
+        return
+
+    conn = sqlite3.connect(DB_NAME)
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        f"""
+        UPDATE users
+        SET {field} = ?
+        WHERE user_id = ?
+        """,
+        (value, user_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def add_coins(user_id, amount):
+
+    data = get_user(user_id)
+
+    new_value = data["coins"] + amount
+
+    update_user(
+        user_id,
+        "coins",
+        new_value
+    )
+
+
+def add_points(user_id, amount):
+
+    data = get_user(user_id)
+
+    new_value = data["points"] + amount
+
+    update_user(
+        user_id,
+        "points",
+        new_value
+    )
+
+
+# ==================================================
+# LANGUAGE
+# ==================================================
+
+TEXTS = {
+
+    "kk": {
+
+        "welcome":
+            "🤖 Vireon ботына қош келдің!\n\n"
+            "Қажетті бөлімді таңда:",
+
+        "profile_button":
+            "👤 Сенің профилің",
+
+        "games_button":
+            "🎮 Ойындар",
+
+        "language_button":
+            "🌐 Тіл",
+
+        "admin_button":
+            "👑 Админ",
+
+        "home":
+            "🏠 БАСТЫ МӘЗІР\n\n"
+            "Қажетті бөлімді таңда:",
+
+        "profile":
+            "👤 СЕНІҢ ПРОФИЛІҢ\n\n",
+
+        "profile_name":
+            "👤 Атың",
+
+        "profile_name_none":
+            "Қойылмаған",
+
+        "profile_id":
+            "🆔 ID",
+
+        "points":
+            "⭐ Ұпай",
+
+        "coins":
+            "🪙 Монета",
+
+        "language":
+            "🌐 Тіл",
+
+        "change_name":
+            "✏️ Атымды өзгерту",
+
+        "back":
+            "🔙 Басты мәзір",
+
+        "games":
+            "🎮 ОЙЫНДАР МӘЗІРІ\n\n"
+            "Ойын таңда:",
+
+        "coin":
+            "🪙 Монета лақтыру",
+
+        "dice":
+            "🎲 Кубик",
+
+        "math":
+            "🧮 Математика",
+
+        "guess":
+            "🎯 Болжам",
+
+        "back_games":
+            "🔙 Ойындарға қайту",
+
+        "coin_result":
+            "🪙 Монета лақтырылды!\n\n",
+
+        "heads":
+            "🟡 Аверс",
+
+        "tails":
+            "⚪ Реверс",
+
+        "coin_count":
+            "🪙 Монетаң",
+
+        "again":
+            "🔄 Қайта ойнау",
+
+        "dice_result":
+            "🎲 Кубик лақтырылды!\n\n",
+
+        "dice_number":
+            "Нәтиже",
+
+        "points_count":
+            "⭐ Ұпайың",
+
+        "math_instruction":
+            "🧮 МАТЕМАТИКА\n\n"
+            "Есепті шығар:\n\n",
+
+        "math_answer":
+            "✍️ Жауабыңды кәдімгі клавиатурамен жаз.",
+
+        "math_correct":
+            "✅ Дұрыс!\n\n"
+            "⭐ +1 ұпай",
+
+        "math_wrong":
+            "❌ Қате!\n\n"
+            "Дұрыс жауап",
+
+        "next_math":
+            "🧮 Келесі есеп",
+
+        "guess_instruction":
+            "🎯 БОЛЖАМ ОЙЫНЫ\n\n"
+            "Мен 1 мен 10 аралығында бір сан ойладым.\n"
+            "Санды жазыңыз:",
+
+        "guess_higher":
+            "⬆️ Үлкенірек сан таңда!",
+
+        "guess_lower":
+            "⬇️ Кішірек сан таңда!",
+
+        "guess_correct":
+            "🎉 Дұрыс таптың!\n\n"
+            "⭐ +1 ұпай\n"
+            "🪙 +2 монета",
+
+        "language_title":
+            "🌐 ТІЛ ТАҢДАУ\n\n"
+            "Қай тілді таңдайсың?",
+
+        "kk_selected":
+            "🇰🇿 Қазақ тілі таңдалды!",
+
+        "ru_selected":
+            "🇷🇺 Русский язык выбран!",
+
+        "en_selected":
+            "🇬🇧 English selected!",
+
+        "admin":
+            "👑 АДМИН\n\n"
+            "🤖 Vireon жобасының әкімшісі\n\n"
+            "Төмендегі батырмалар арқылы байланыса аласың.",
+
+        "write_admin":
+            "📩 Админге жазу",
+
+        "youtube":
+            "▶️ YouTube",
+
+        "tiktok":
+            "🎵 TikTok",
+
+        "enter_name":
+            "✏️ Жаңа атыңды жаз:\n\n"
+            "Бұл Vireon ішіндегі профиліңнің аты болады.",
+
+        "name_saved":
+            "✅ Атың сәтті өзгертілді!",
+
+        "invalid_number":
+            "❌ Өтінемін, тек сан жаз.",
+
+        "math_wait":
+            "🧮 Алдымен осы есептің жауабын жаз.",
+
+        "guess_wait":
+            "🎯 Алдымен 1 мен 10 аралығындағы сан жаз."
+
+    },
+
+
+    "ru": {
+
+        "welcome":
+            "🤖 Добро пожаловать в Vireon!\n\n"
+            "Выбери нужный раздел:",
+
+        "profile_button":
+            "👤 Твой профиль",
+
+        "games_button":
+            "🎮 Игры",
+
+        "language_button":
+            "🌐 Язык",
+
+        "admin_button":
+            "👑 Админ",
+
+        "home":
+            "🏠 ГЛАВНОЕ МЕНЮ\n\n"
+            "Выбери нужный раздел:",
+
+        "profile":
+            "👤 ТВОЙ ПРОФИЛЬ\n\n",
+
+        "profile_name":
+            "👤 Имя",
+
+        "profile_name_none":
+            "Не установлено",
+
+        "profile_id":
+            "🆔 ID",
+
+        "points":
+            "⭐ Очки",
+
+        "coins":
+            "🪙 Монеты",
+
+        "language":
+            "🌐 Язык",
+
+        "change_name":
+            "✏️ Изменить имя",
+
+        "back":
+            "🔙 Главное меню",
+
+        "games":
+            "🎮 МЕНЮ ИГР\n\n"
+            "Выбери игру:",
+
+        "coin":
+            "🪙 Подбросить монету",
+
+        "dice":
+            "🎲 Кубик",
+
+        "math":
+            "🧮 Математика",
+
+        "guess":
+            "🎯 Угадай число",
+
+        "back_games":
+            "🔙 Назад к играм",
+
+        "coin_result":
+            "🪙 Монета подброшена!\n\n",
+
+        "heads":
+            "🟡 Орёл",
+
+        "tails":
+            "⚪ Решка",
+
+        "coin_count":
+            "🪙 Твои монеты",
+
+        "again":
+            "🔄 Играть снова",
+
+        "dice_result":
+            "🎲 Кубик брошен!\n\n",
+
+        "dice_number":
+            "Результат",
+
+        "points_count":
+            "⭐ Твои очки",
+
+        "math_instruction":
+            "🧮 МАТЕМАТИКА\n\n"
+            "Реши пример:\n\n",
+
+        "math_answer":
+            "✍️ Напиши ответ с обычной клавиатуры.",
+
+        "math_correct":
+            "✅ Правильно!\n\n"
+            "⭐ +1 очко",
+
+        "math_wrong":
+            "❌ Неправильно!\n\n"
+            "Правильный ответ",
+
+        "next_math":
+            "🧮 Следующий пример",
+
+        "guess_instruction":
+            "🎯 ИГРА «УГАДАЙ ЧИСЛО»\n\n"
+            "Я загадал число от 1 до 10.\n"
+            "Напиши число:",
+
+        "guess_higher":
+            "⬆️ Возьми число побольше!",
+
+        "guess_lower":
+            "⬇️ Возьми число поменьше!",
+
+        "guess_correct":
+            "🎉 Правильно!\n\n"
+            "⭐ +1 очко\n"
+            "🪙 +2 монеты",
+
+        "language_title":
+            "🌐 ВЫБОР ЯЗЫКА\n\n"
+            "Какой язык выбрать?",
+
+        "kk_selected":
+            "🇰🇿 Выбран казахский язык!",
+
+        "ru_selected":
+            "🇷🇺 Выбран русский язык!",
+
+        "en_selected":
+            "🇬🇧 Выбран английский язык!",
+
+        "admin":
+            "👑 АДМИН\n\n"
+            "🤖 Администратор проекта Vireon\n\n"
+            "Ты можешь связаться с администратором:",
+
+        "write_admin":
+            "📩 Написать админу",
+
+        "youtube":
+            "▶️ YouTube",
+
+        "tiktok":
+            "🎵 TikTok",
+
+        "enter_name":
+            "✏️ Напиши новое имя:\n\n"
+            "Это будет имя твоего профиля внутри Vireon.",
+
+        "name_saved":
+            "✅ Имя успешно изменено!",
+
+        "invalid_number":
+            "❌ Пожалуйста, напиши только число.",
+
+        "math_wait":
+            "🧮 Сначала напиши ответ на этот пример.",
+
+        "guess_wait":
+            "🎯 Сначала напиши число от 1 до 10."
+
+    },
+
+
+    "en": {
+
+        "welcome":
+            "🤖 Welcome to Vireon!\n\n"
+            "Choose a section:",
+
+        "profile_button":
+            "👤 Your Profile",
+
+        "games_button":
+            "🎮 Games",
+
+        "language_button":
+            "🌐 Language",
+
+        "admin_button":
+            "👑 Admin",
+
+        "home":
+            "🏠 MAIN MENU\n\n"
+            "Choose a section:",
+
+        "profile":
+            "👤 YOUR PROFILE\n\n",
+
+        "profile_name":
+            "👤 Name",
+
+        "profile_name_none":
+            "Not set",
+
+        "profile_id":
+            "🆔 ID",
+
+        "points":
+            "⭐ Points",
+
+        "coins":
+            "🪙 Coins",
+
+        "language":
+            "🌐 Language",
+
+        "change_name":
+            "✏️ Change Name",
+
+        "back":
+            "🔙 Main Menu",
+
+        "games":
+            "🎮 GAMES MENU\n\n"
+            "Choose a game:",
+
+        "coin":
+            "🪙 Flip Coin",
+
+        "dice":
+            "🎲 Dice",
+
+        "math":
+            "🧮 Math",
+
+        "guess":
+            "🎯 Guess the Number",
+
+        "back_games":
+            "🔙 Back to Games",
+
+        "coin_result":
+            "🪙 Coin flipped!\n\n",
+
+        "heads":
+            "🟡 Heads",
+
+        "tails":
+            "⚪ Tails",
+
+        "coin_count":
+            "🪙 Your coins",
+
+        "again":
+            "🔄 Play Again",
+
+        "dice_result":
+            "🎲 Dice rolled!\n\n",
+
+        "dice_number":
+            "Result",
+
+        "points_count":
+            "⭐ Your points",
+
+        "math_instruction":
+            "🧮 MATH\n\n"
+            "Solve this problem:\n\n",
+
+        "math_answer":
+            "✍️ Type your answer using the normal keyboard.",
+
+        "math_correct":
+            "✅ Correct!\n\n"
+            "⭐ +1 point",
+
+        "math_wrong":
+            "❌ Wrong!\n\n"
+            "Correct answer",
+
+        "next_math":
+            "🧮 Next Problem",
+
+        "guess_instruction":
+            "🎯 GUESS THE NUMBER\n\n"
+            "I chose a number from 1 to 10.\n"
+            "Type your guess:",
+
+        "guess_higher":
+            "⬆️ Choose a higher number!",
+
+        "guess_lower":
+            "⬇️ Choose a lower number!",
+
+        "guess_correct":
+            "🎉 Correct!\n\n"
+            "⭐ +1 point\n"
+            "🪙 +2 coins",
+
+        "language_title":
+            "🌐 LANGUAGE SELECTION\n\n"
+            "Which language do you choose?",
+
+        "kk_selected":
+            "🇰🇿 Kazakh selected!",
+
+        "ru_selected":
+            "🇷🇺 Russian selected!",
+
+        "en_selected":
+            "🇬🇧 English selected!",
+
+        "admin":
+            "👑 ADMIN\n\n"
+            "🤖 Vireon project administrator\n\n"
+            "You can contact the administrator:",
+
+        "write_admin":
+            "📩 Contact Admin",
+
+        "youtube":
+            "▶️ YouTube",
+
+        "tiktok":
+            "🎵 TikTok",
+
+        "enter_name":
+            "✏️ Enter your new name:\n\n"
+            "This will be your profile name inside Vireon.",
+
+        "name_saved":
+            "✅ Name successfully changed!",
+
+        "invalid_number":
+            "❌ Please enter a number only.",
+
+        "math_wait":
+            "🧮 First, answer the current problem.",
+
+        "guess_wait":
+            "🎯 First, enter a number from 1 to 10."
+
+    }
+
+}
+
+
+# ==================================================
+# USER STATES
+# ==================================================
+
+waiting_for_name = set()
+
+math_questions = {}
+
+guess_questions = {}
+
+
+# ==================================================
+# TRANSLATION
+# ==================================================
+
+def t(user_id, key):
+
+    data = get_user(user_id)
+
+    language = data["language"]
+
+    return TEXTS[language][key]
+
+
+# ==================================================
+# MAIN MENU
+# ==================================================
+
+def main_menu(user_id):
 
     keyboard = [
+
         [
             InlineKeyboardButton(
-                "👤 Менің профилім",
+                t(user_id, "profile_button"),
                 callback_data="profile"
             )
         ],
+
         [
             InlineKeyboardButton(
-                "🎮 Ойындар",
+                t(user_id, "games_button"),
                 callback_data="games"
             )
         ],
+
         [
             InlineKeyboardButton(
-                "📚 Кітапхана",
-                callback_data="library"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🤖 ChatGPT",
-                callback_data="ai_chat"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "📎 Тіл",
+                t(user_id, "language_button"),
                 callback_data="language"
             )
         ],
+
         [
             InlineKeyboardButton(
-                "📞 Байланыс",
-                callback_data="contact"
+                t(user_id, "admin_button"),
+                callback_data="admin"
             )
         ]
+
     ]
 
     return InlineKeyboardMarkup(keyboard)
 
 
-# =========================
-# /START
-# =========================
+# ==================================================
+# PROFILE MENU
+# ==================================================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def profile_menu(user_id):
 
-    user = update.effective_user
+    keyboard = [
 
-    if user.id not in users:
+        [
+            InlineKeyboardButton(
+                t(user_id, "change_name"),
+                callback_data="change_name"
+            )
+        ],
 
-        users[user.id] = {
-            "coins": 0,
-            "points": 0,
-            "language": "kk"
-        }
+        [
+            InlineKeyboardButton(
+                t(user_id, "back"),
+                callback_data="home"
+            )
+        ]
 
-    # ChatGPT режимінен шығару
-    ai_users.discard(user.id)
+    ]
 
-    await update.message.reply_text(
+    return InlineKeyboardMarkup(keyboard)
 
-        f"🤖 Vireon ботына қош келдің, "
-        f"{user.first_name}!\n\n"
 
-        "Төмендегі мәзірден таңда:",
+# ==================================================
+# GAMES MENU
+# ==================================================
 
-        reply_markup=main_menu()
+def games_menu(user_id):
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                t(user_id, "coin"),
+                callback_data="coin"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                t(user_id, "dice"),
+                callback_data="dice"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                t(user_id, "math"),
+                callback_data="math"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                t(user_id, "guess"),
+                callback_data="guess"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                t(user_id, "back"),
+                callback_data="home"
+            )
+        ]
+
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# ==================================================
+# PROFILE
+# ==================================================
+
+async def show_profile(query):
+
+    user = query.from_user
+
+    data = get_user(user.id)
+
+    profile_name = data["profile_name"]
+
+    if not profile_name:
+
+        profile_name = t(
+            user.id,
+            "profile_name_none"
+        )
+
+    text = (
+
+        t(user.id, "profile")
+
+        + f"{t(user.id, 'profile_name')}: "
+        + f"{profile_name}\n"
+
+        + f"{t(user.id, 'profile_id')}: "
+        + f"{data['user_id']}\n"
+
+        + f"{t(user.id, 'points')}: "
+        + f"{data['points']}\n"
+
+        + f"{t(user.id, 'coins')}: "
+        + f"{data['coins']}\n"
+
+    )
+
+    await query.edit_message_text(
+        text,
+        reply_markup=profile_menu(user.id)
     )
 
 
-# =========================
-# БАТЫРМАЛАР
-# =========================
+# ==================================================
+# START
+# ==================================================
 
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    user = update.effective_user
+
+    create_user(user.id)
+
+    waiting_for_name.discard(user.id)
+
+    math_questions.pop(user.id, None)
+
+    guess_questions.pop(user.id, None)
+
+    await update.message.reply_text(
+
+        t(user.id, "welcome"),
+
+        reply_markup=main_menu(user.id)
+    )
+
+
+# ==================================================
+# BUTTONS
+# ==================================================
+
+async def button(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     query = update.callback_query
 
@@ -142,110 +934,90 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = query.from_user
 
-    if user.id not in users:
+    create_user(user.id)
 
-        users[user.id] = {
-            "coins": 0,
-            "points": 0,
-            "language": "kk"
-        }
+    data = get_user(user.id)
 
-
-    # =========================
-    # ПРОФИЛЬ
-    # =========================
+    # ==================================================
+    # PROFILE
+    # ==================================================
 
     if query.data == "profile":
 
-        data = users[user.id]
+        await show_profile(query)
 
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "🔙 Басты мәзір",
-                    callback_data="home"
-                )
-            ]
-        ]
+
+    # ==================================================
+    # CHANGE NAME
+    # ==================================================
+
+    elif query.data == "change_name":
+
+        waiting_for_name.add(user.id)
 
         await query.edit_message_text(
-
-            f"👤 СЕНІҢ ПРОФИЛІҢ\n\n"
-            f"🏷 Атың: {user.first_name}\n"
-            f"🆔 ID: {user.id}\n"
-            f"⭐ Ұпай: {data['points']}\n"
-            f"🪙 Монета: {data['coins']}",
-
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            t(user.id, "enter_name")
         )
 
 
-    # =========================
-    # ОЙЫНДАР
-    # =========================
+    # ==================================================
+    # GAMES
+    # ==================================================
 
     elif query.data == "games":
 
-        keyboard = [
+        math_questions.pop(user.id, None)
 
-            [
-                InlineKeyboardButton(
-                    "🪙 Монета лақтыру",
-                    callback_data="coin"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🎲 Кубик",
-                    callback_data="dice"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🔙 Басты мәзір",
-                    callback_data="home"
-                )
-            ]
-
-        ]
+        guess_questions.pop(user.id, None)
 
         await query.edit_message_text(
 
-            "🎮 ОЙЫНДАР МӘЗІРІ\n\n"
-            "Ойын таңда:",
+            t(user.id, "games"),
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=games_menu(user.id)
         )
 
 
-    # =========================
-    # МОНЕТА
-    # =========================
+    # ==================================================
+    # COIN
+    # ==================================================
 
     elif query.data == "coin":
 
         result = random.choice(
-            ["🟡 Аверс", "⚪ Реверс"]
+            ["heads", "tails"]
         )
 
-        if result == "🟡 Аверс":
+        if result == "heads":
 
-            users[user.id]["coins"] += 1
+            add_coins(user.id, 1)
+
+            result_text = t(
+                user.id,
+                "heads"
+            )
+
+        else:
+
+            result_text = t(
+                user.id,
+                "tails"
+            )
+
+        data = get_user(user.id)
 
         keyboard = [
 
             [
                 InlineKeyboardButton(
-                    "🪙 Қайта ойнау",
+                    t(user.id, "again"),
                     callback_data="coin"
                 )
             ],
 
             [
                 InlineKeyboardButton(
-                    "🔙 Ойындарға қайту",
+                    t(user.id, "back_games"),
                     callback_data="games"
                 )
             ]
@@ -254,18 +1026,20 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
 
-            f"🪙 Монета лақтырылды!\n\n"
-            f"Нәтиже: {result}\n"
-            f"🪙 Монетаң: "
-            f"{users[user.id]['coins']}",
+            t(user.id, "coin_result")
+            + f"🎯 {result_text}\n\n"
+            + f"{t(user.id, 'coin_count')}: "
+            + f"{data['coins']}",
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
 
-    # =========================
-    # КУБИК
-    # =========================
+    # ==================================================
+    # DICE
+    # ==================================================
 
     elif query.data == "dice":
 
@@ -273,20 +1047,25 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if number >= 4:
 
-            users[user.id]["points"] += 1
+            add_points(
+                user.id,
+                1
+            )
+
+        data = get_user(user.id)
 
         keyboard = [
 
             [
                 InlineKeyboardButton(
-                    "🎲 Қайта ойнау",
+                    t(user.id, "again"),
                     callback_data="dice"
                 )
             ],
 
             [
                 InlineKeyboardButton(
-                    "🔙 Ойындарға қайту",
+                    t(user.id, "back_games"),
                     callback_data="games"
                 )
             ]
@@ -295,146 +1074,109 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
 
-            f"🎲 Кубик лақтырылды!\n\n"
-            f"Нәтиже: {number}\n"
-            f"⭐ Ұпайың: "
-            f"{users[user.id]['points']}",
+            t(user.id, "dice_result")
+            + f"🎯 {t(user.id, 'dice_number')}: "
+            + f"{number}\n"
+            + f"{t(user.id, 'points_count')}: "
+            + f"{data['points']}",
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
 
-    # =========================
-    # КІТАПХАНА
-    # =========================
+    # ==================================================
+    # MATH GAME
+    # ==================================================
 
-    elif query.data == "library":
+    elif query.data == "math":
 
-        keyboard = [
+        create_math_question(user.id)
 
-            [
-                InlineKeyboardButton(
-                    "📖 Хранитель персиков",
-                    callback_data="book_peach"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🔙 Басты мәзір",
-                    callback_data="home"
-                )
-            ]
-
-        ]
+        question = math_questions[user.id]
 
         await query.edit_message_text(
 
-            "📚 КІТАПХАНА\n\n"
-            "Кітапты таңда:",
+            t(user.id, "math_instruction")
+            + f"👉 {question['text']}\n\n"
+            + t(user.id, "math_answer"),
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+            reply_markup=InlineKeyboardMarkup([
 
-
-    # =========================
-    # ХРАНИТЕЛЬ ПЕРСИКОВ
-    # =========================
-
-    elif query.data == "book_peach":
-
-        if not os.path.isfile(PDF_PATH):
-
-            await query.message.reply_text(
-
-                "❌ PDF файл табылмады!\n\n"
-
-                "Файл мына папкада болуы керек:\n"
-
-                f"{PDF_PATH}\n\n"
-
-                "Файлдың атауы дәл:\n"
-                "Хранитель персиков.pdf"
-            )
-
-            return
-
-
-        await query.message.reply_text(
-
-            "📖 Хранитель персиков\n\n"
-            "⏳ Кітап дайындалып жатыр...\n"
-            "Бір сәт күте тұр."
-        )
-
-
-        try:
-
-            with open(PDF_PATH, "rb") as pdf:
-
-                await query.message.reply_document(
-
-                    document=pdf,
-
-                    filename="Хранитель персиков.pdf",
-
-                    caption=(
-                        "📖 Хранитель персиков\n\n"
-                        "📚 Толық PDF кітап"
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "back_games"),
+                        callback_data="games"
                     )
-                )
+                ]
 
-        except Exception as e:
-
-            await query.message.reply_text(
-
-                "❌ PDF жіберу кезінде қате болды.\n\n"
-                f"{e}"
-            )
-
-
-    # =========================
-    # CHATGPT
-    # =========================
-
-    elif query.data == "ai_chat":
-
-        ai_users.add(user.id)
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "🔙 Басты мәзір",
-                    callback_data="home"
-                )
-            ]
-
-        ]
-
-        await query.edit_message_text(
-
-            "🤖 CHATGPT\n\n"
-
-            "Сәлем! Мен ChatGPT-пін. 😊\n\n"
-
-            "Маған кез келген сұрағыңды жаза бер.\n\n"
-
-            "Мысалы:\n"
-            "• Python туралы сұра\n"
-            "• Математика есептерін сұра\n"
-            "• Мәтін жаздыр\n"
-            "• Бір нәрсені түсіндір\n\n"
-
-            "💬 Сұрағыңды жаза бер:",
-
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            ])
         )
 
 
-    # =========================
-    # ТІЛ МӘЗІРІ
-    # =========================
+    # ==================================================
+    # NEXT MATH
+    # ==================================================
+
+    elif query.data == "next_math":
+
+        create_math_question(user.id)
+
+        question = math_questions[user.id]
+
+        await query.edit_message_text(
+
+            t(user.id, "math_instruction")
+            + f"👉 {question['text']}\n\n"
+            + t(user.id, "math_answer"),
+
+            reply_markup=InlineKeyboardMarkup([
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "back_games"),
+                        callback_data="games"
+                    )
+                ]
+
+            ])
+        )
+
+
+    # ==================================================
+    # GUESS GAME
+    # ==================================================
+
+    elif query.data == "guess":
+
+        secret = random.randint(
+            1,
+            10
+        )
+
+        guess_questions[user.id] = secret
+
+        await query.edit_message_text(
+
+            t(user.id, "guess_instruction"),
+
+            reply_markup=InlineKeyboardMarkup([
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "back_games"),
+                        callback_data="games"
+                    )
+                ]
+
+            ])
+        )
+
+
+    # ==================================================
+    # LANGUAGE
+    # ==================================================
 
     elif query.data == "language":
 
@@ -463,7 +1205,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             [
                 InlineKeyboardButton(
-                    "🔙 Басты мәзір",
+                    t(user.id, "back"),
                     callback_data="home"
                 )
             ]
@@ -472,167 +1214,106 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
 
-            "📎 ТІЛ ТАҢДАУ\n\n"
-            "Қай тілді таңдайсың?",
+            t(user.id, "language_title"),
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
 
-    # =========================
-    # ҚАЗАҚША
-    # =========================
+    # ==================================================
+    # KAZAKH
+    # ==================================================
 
     elif query.data == "lang_kk":
 
-        users[user.id]["language"] = "kk"
+        update_user(
+            user.id,
+            "language",
+            "kk"
+        )
 
         await query.edit_message_text(
 
-            "🇰🇿 Қазақ тілі таңдалды!\n\n"
-            "Тілді сәтті өзгерттің.",
+            t(user.id, "kk_selected"),
 
-            reply_markup=main_menu()
+            reply_markup=main_menu(user.id)
         )
 
 
-    # =========================
-    # РУССКИЙ
-    # =========================
+    # ==================================================
+    # RUSSIAN
+    # ==================================================
 
     elif query.data == "lang_ru":
 
-        users[user.id]["language"] = "ru"
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "👤 Мой профиль",
-                    callback_data="profile"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🎮 Игры",
-                    callback_data="games"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📚 Библиотека",
-                    callback_data="library"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🤖 ChatGPT",
-                    callback_data="ai_chat"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📎 Язык",
-                    callback_data="language"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📞 Контакты",
-                    callback_data="contact"
-                )
-            ]
-
-        ]
+        update_user(
+            user.id,
+            "language",
+            "ru"
+        )
 
         await query.edit_message_text(
 
-            "🇷🇺 Русский язык выбран!\n\n"
-            "Язык успешно изменён.",
+            t(user.id, "ru_selected"),
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=main_menu(user.id)
         )
 
 
-    # =========================
+    # ==================================================
     # ENGLISH
-    # =========================
+    # ==================================================
 
     elif query.data == "lang_en":
 
-        users[user.id]["language"] = "en"
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "👤 My Profile",
-                    callback_data="profile"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🎮 Games",
-                    callback_data="games"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📚 Library",
-                    callback_data="library"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🤖 ChatGPT",
-                    callback_data="ai_chat"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📎 Language",
-                    callback_data="language"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "📞 Contact",
-                    callback_data="contact"
-                )
-            ]
-
-        ]
+        update_user(
+            user.id,
+            "language",
+            "en"
+        )
 
         await query.edit_message_text(
 
-            "🇬🇧 English selected!\n\n"
-            "Language successfully changed.",
+            t(user.id, "en_selected"),
 
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=main_menu(user.id)
         )
 
 
-    # =========================
-    # БАЙЛАНЫС
-    # =========================
+    # ==================================================
+    # ADMIN
+    # ==================================================
 
-    elif query.data == "contact":
+    elif query.data == "admin":
 
         keyboard = [
 
             [
                 InlineKeyboardButton(
-                    "🔙 Басты мәзір",
+                    t(user.id, "write_admin"),
+                    url=f"https://t.me/{ADMIN_USERNAME}"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    t(user.id, "youtube"),
+                    url=YOUTUBE_URL
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    t(user.id, "tiktok"),
+                    url=TIKTOK_URL
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    t(user.id, "back"),
                     callback_data="home"
                 )
             ]
@@ -641,165 +1322,375 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
 
-            "📞 БАЙЛАНЫС\n\n"
+            t(user.id, "admin"),
 
-            "Сұрақтарың болса, "
-            "админге жаза аласың.",
-
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
 
 
-    # =========================
-    # БАСТЫ МӘЗІР
-    # =========================
+    # ==================================================
+    # HOME
+    # ==================================================
 
     elif query.data == "home":
 
-        # ChatGPT режимінен шығу
-        ai_users.discard(user.id)
+        waiting_for_name.discard(user.id)
+
+        math_questions.pop(user.id, None)
+
+        guess_questions.pop(user.id, None)
 
         await query.edit_message_text(
 
-            "🏠 БАСТЫ МӘЗІР\n\n"
-            "Қажетті бөлімді таңда:",
+            t(user.id, "home"),
 
-            reply_markup=main_menu()
+            reply_markup=main_menu(user.id)
         )
 
 
 # ==================================================
-# CHATGPT-ТЕН ЖАУАП АЛУ
+# CREATE MATH QUESTION
 # ==================================================
 
-async def ai_message(
+def create_math_question(user_id):
+
+    operation = random.choice([
+        "+",
+        "-",
+        "*",
+        "/"
+    ])
+
+    if operation == "+":
+
+        a = random.randint(1, 100)
+        b = random.randint(1, 100)
+
+        answer = a + b
+
+        text = f"{a} + {b} = ?"
+
+
+    elif operation == "-":
+
+        a = random.randint(1, 100)
+        b = random.randint(1, 100)
+
+        if b > a:
+
+            a, b = b, a
+
+        answer = a - b
+
+        text = f"{a} - {b} = ?"
+
+
+    elif operation == "*":
+
+        a = random.randint(2, 20)
+        b = random.randint(2, 20)
+
+        answer = a * b
+
+        text = f"{a} × {b} = ?"
+
+
+    else:
+
+        b = random.randint(2, 12)
+
+        answer = random.randint(1, 12)
+
+        a = b * answer
+
+        text = f"{a} ÷ {b} = ?"
+
+
+    math_questions[user_id] = {
+
+        "text": text,
+        "answer": answer
+
+    }
+
+
+# ==================================================
+# TEXT MESSAGES
+# ==================================================
+
+async def text_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
 
     user = update.effective_user
 
-    # Егер ChatGPT режимі қосылмаған болса,
-    # қарапайым хабарламаларды елемейміз.
-
-    if user.id not in ai_users:
-
-        return
-
+    create_user(user.id)
 
     text = update.message.text.strip()
 
-    if not text:
+    # ==================================================
+    # CHANGE PROFILE NAME
+    # ==================================================
+
+    if user.id in waiting_for_name:
+
+        if len(text) > 30:
+
+            await update.message.reply_text(
+                "❌ Атың 30 таңбадан аспауы керек."
+            )
+
+            return
+
+        update_user(
+            user.id,
+            "profile_name",
+            text
+        )
+
+        waiting_for_name.discard(user.id)
+
+        await update.message.reply_text(
+
+            t(user.id, "name_saved"),
+
+            reply_markup=main_menu(user.id)
+        )
 
         return
 
 
-    # =========================
-    # ОЙЛАНЫП ЖАТЫР
-    # =========================
+    # ==================================================
+    # MATH ANSWER
+    # ==================================================
 
-    thinking = await update.message.reply_text(
-        "🤖 Ойланып жатырмын..."
-    )
+    if user.id in math_questions:
 
+        try:
 
-    try:
+            answer = int(text)
 
-        response = client.responses.create(
+        except ValueError:
 
-            model="gpt-5",
+            await update.message.reply_text(
+                t(user.id, "invalid_number")
+            )
 
-            input=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Сен Vireon Telegram ботындағы "
-                        "ChatGPT көмекшісісің. "
-                        "Пайдаланушы қай тілде жазса, "
-                        "сол тілде жауап бер. "
-                        "Жауапты түсінікті және пайдалы бер."
+            return
+
+        question = math_questions[user.id]
+
+        if answer == question["answer"]:
+
+            add_points(
+                user.id,
+                1
+            )
+
+            keyboard = [
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "next_math"),
+                        callback_data="next_math"
                     )
-                },
-                {
-                    "role": "user",
-                    "content": text
-                }
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "back_games"),
+                        callback_data="games"
+                    )
+                ]
+
             ]
 
-        )
+            await update.message.reply_text(
 
+                t(user.id, "math_correct"),
 
-        answer = response.output_text
+                reply_markup=InlineKeyboardMarkup(
+                    keyboard
+                )
+            )
 
-
-        # Telegram хабарлама лимитінен асып кетсе,
-        # бірнеше бөлікке бөлеміз.
-
-        max_length = 4000
-
-        if len(answer) <= max_length:
-
-            await thinking.edit_text(
-                "🤖 " + answer
+            math_questions.pop(
+                user.id,
+                None
             )
 
         else:
 
-            await thinking.delete()
+            await update.message.reply_text(
 
-            for i in range(0, len(answer), max_length):
+                t(user.id, "math_wrong")
+                + f": {question['answer']}",
 
-                part = answer[i:i + max_length]
+                reply_markup=InlineKeyboardMarkup([
 
-                await update.message.reply_text(
-                    "🤖 " + part
+                    [
+                        InlineKeyboardButton(
+                            t(user.id, "next_math"),
+                            callback_data="next_math"
+                        )
+                    ],
+
+                    [
+                        InlineKeyboardButton(
+                            t(user.id, "back_games"),
+                            callback_data="games"
+                        )
+                    ]
+
+                ])
+            )
+
+            math_questions.pop(
+                user.id,
+                None
+            )
+
+        return
+
+
+    # ==================================================
+    # GUESS ANSWER
+    # ==================================================
+
+    if user.id in guess_questions:
+
+        try:
+
+            number = int(text)
+
+        except ValueError:
+
+            await update.message.reply_text(
+                t(user.id, "invalid_number")
+            )
+
+            return
+
+        if number < 1 or number > 10:
+
+            await update.message.reply_text(
+                t(user.id, "guess_wait")
+            )
+
+            return
+
+        secret = guess_questions[user.id]
+
+        if number == secret:
+
+            add_points(
+                user.id,
+                1
+            )
+
+            add_coins(
+                user.id,
+                2
+            )
+
+            keyboard = [
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "guess"),
+                        callback_data="guess"
+                    )
+                ],
+
+                [
+                    InlineKeyboardButton(
+                        t(user.id, "back_games"),
+                        callback_data="games"
+                    )
+                ]
+
+            ]
+
+            await update.message.reply_text(
+
+                t(user.id, "guess_correct"),
+
+                reply_markup=InlineKeyboardMarkup(
+                    keyboard
                 )
+            )
 
+            guess_questions.pop(
+                user.id,
+                None
+            )
 
-    except Exception as e:
+        elif number < secret:
 
-        await thinking.edit_text(
+            await update.message.reply_text(
+                t(user.id, "guess_higher")
+            )
 
-            "❌ ChatGPT жауап бере алмады.\n\n"
+        else:
 
-            "Мыналарды тексер:\n"
-            "1️⃣ OpenAI API key дұрыс па?\n"
-            "2️⃣ Интернет бар ма?\n"
-            "3️⃣ API аккаунтыңда модельді қолдану мүмкіндігі бар ма?\n\n"
+            await update.message.reply_text(
+                t(user.id, "guess_lower")
+            )
 
-            f"Техникалық қате:\n{e}"
-        )
+        return
 
 
 # ==================================================
-# БОТТЫ ІСКЕ ҚОСУ
+# START DATABASE
+# ==================================================
+
+init_db()
+
+
+# ==================================================
+# APPLICATION
 # ==================================================
 
 app = Application.builder().token(TOKEN).build()
 
 
+# ==================================================
+# HANDLERS
+# ==================================================
+
 app.add_handler(
-    CommandHandler("start", start)
-)
-
-
-app.add_handler(
-    CallbackQueryHandler(button)
-)
-
-
-# Қарапайым мәтіндерді ChatGPT-ке жіберу
-app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        ai_message
+    CommandHandler(
+        "start",
+        start
     )
 )
 
 
-print(
-    "Vireon + ChatGPT бот іске қосылды! 🚀"
+app.add_handler(
+    CallbackQueryHandler(
+        button
+    )
 )
 
 
-app.run_polling()
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        text_message
+    )
+)
+
+
+# ==================================================
+# RUN
+# ==================================================
+
+print(
+    "Vireon бот іске қосылды! 🚀"
+)
+
+
+app.run_polling()      
