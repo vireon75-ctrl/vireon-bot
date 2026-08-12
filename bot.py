@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+43from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -639,4 +639,4 @@ def games_menu(user_id):
         [
             InlineKeyboardButton(
                 t(user_id, "guess"),
-                callback_data="guess
+                callback_data="guess"
