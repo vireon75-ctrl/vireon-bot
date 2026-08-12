@@ -9,48 +9,42 @@ from telegram.ext import (
 )
 
 import random
-import sqlite3
+import os
+import psycopg2
 
 
 # ==================================================
 # BOT TOKEN
 # ==================================================
 
-TOKEN = "СЕНІҢ_TELEGRAM_BOT_TOKEN"
+TOKEN = os.getenv("BOT_TOKEN")
 
-
-# ==================================================
-# ADMIN
-# ==================================================
-
-ADMIN_USERNAME = "Sabinanizhansykorem"
-
-
-# ==================================================
-# YOUTUBE / TIKTOK
-# ==================================================
-# Кейін өз арнаңның нақты сілтемесін осы жерге қой.
-
-YOUTUBE_URL = "https://youtube.com/"
-TIKTOK_URL = "https://tiktok.com/"
+if not TOKEN:
+    raise ValueError("BOT_TOKEN табылмады!")
 
 
 # ==================================================
 # DATABASE
 # ==================================================
 
-DB_NAME = "vireon.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL табылмады!")
+
+
+def get_connection():
+    return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
 
-    conn = sqlite3.connect(DB_NAME)
-
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
+            user_id BIGINT PRIMARY KEY,
             profile_name TEXT DEFAULT '',
             coins INTEGER DEFAULT 0,
             points INTEGER DEFAULT 0,
@@ -59,6 +53,7 @@ def init_db():
     """)
 
     conn.commit()
+    cursor.close()
     conn.close()
 
 
@@ -68,35 +63,24 @@ def init_db():
 
 def create_user(user_id):
 
-    conn = sqlite3.connect(DB_NAME)
-
+    conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT user_id FROM users WHERE user_id = ?",
-        (user_id,)
-    )
-
-    exists = cursor.fetchone()
-
-    if not exists:
-
-        cursor.execute(
-            """
-            INSERT INTO users
-            (user_id, profile_name, coins, points, language)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                user_id,
-                "",
-                0,
-                0,
-                "kk"
-            )
-        )
+    cursor.execute("""
+        INSERT INTO users
+        (user_id, profile_name, coins, points, language)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (user_id) DO NOTHING
+    """, (
+        user_id,
+        "",
+        0,
+        0,
+        "kk"
+    ))
 
     conn.commit()
+    cursor.close()
     conn.close()
 
 
@@ -104,21 +88,18 @@ def get_user(user_id):
 
     create_user(user_id)
 
-    conn = sqlite3.connect(DB_NAME)
-
+    conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         SELECT user_id, profile_name, coins, points, language
         FROM users
-        WHERE user_id = ?
-        """,
-        (user_id,)
-    )
+        WHERE user_id = %s
+    """, (user_id,))
 
     row = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
     return {
@@ -142,51 +123,74 @@ def update_user(user_id, field, value):
     if field not in allowed_fields:
         return
 
-    conn = sqlite3.connect(DB_NAME)
-
+    conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        f"""
+    query = f"""
         UPDATE users
-        SET {field} = ?
-        WHERE user_id = ?
-        """,
+        SET {field} = %s
+        WHERE user_id = %s
+    """
+
+    cursor.execute(
+        query,
         (value, user_id)
     )
 
     conn.commit()
+    cursor.close()
     conn.close()
 
 
 def add_coins(user_id, amount):
 
-    data = get_user(user_id)
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    new_value = data["coins"] + amount
+    cursor.execute("""
+        UPDATE users
+        SET coins = coins + %s
+        WHERE user_id = %s
+    """, (amount, user_id))
 
-    update_user(
-        user_id,
-        "coins",
-        new_value
-    )
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 def add_points(user_id, amount):
 
-    data = get_user(user_id)
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    new_value = data["points"] + amount
+    cursor.execute("""
+        UPDATE users
+        SET points = points + %s
+        WHERE user_id = %s
+    """, (amount, user_id))
 
-    update_user(
-        user_id,
-        "points",
-        new_value
-    )
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 # ==================================================
-# LANGUAGE
+# ADMIN
+# ==================================================
+
+ADMIN_USERNAME = "Sabinanizhansykorem"
+
+
+# ==================================================
+# YOUTUBE / TIKTOK
+# ==================================================
+
+YOUTUBE_URL = "https://youtube.com/"
+TIKTOK_URL = "https://tiktok.com/"
+
+
+# ==================================================
+# LANGUAGE TEXTS
 # ==================================================
 
 TEXTS = {
@@ -230,9 +234,6 @@ TEXTS = {
 
         "coins":
             "🪙 Монета",
-
-        "language":
-            "🌐 Тіл",
 
         "change_name":
             "✏️ Атымды өзгерту",
@@ -354,12 +355,8 @@ TEXTS = {
         "invalid_number":
             "❌ Өтінемін, тек сан жаз.",
 
-        "math_wait":
-            "🧮 Алдымен осы есептің жауабын жаз.",
-
         "guess_wait":
             "🎯 Алдымен 1 мен 10 аралығындағы сан жаз."
-
     },
 
 
@@ -402,9 +399,6 @@ TEXTS = {
 
         "coins":
             "🪙 Монеты",
-
-        "language":
-            "🌐 Язык",
 
         "change_name":
             "✏️ Изменить имя",
@@ -526,12 +520,8 @@ TEXTS = {
         "invalid_number":
             "❌ Пожалуйста, напиши только число.",
 
-        "math_wait":
-            "🧮 Сначала напиши ответ на этот пример.",
-
         "guess_wait":
             "🎯 Сначала напиши число от 1 до 10."
-
     },
 
 
@@ -574,9 +564,6 @@ TEXTS = {
 
         "coins":
             "🪙 Coins",
-
-        "language":
-            "🌐 Language",
 
         "change_name":
             "✏️ Change Name",
@@ -698,14 +685,9 @@ TEXTS = {
         "invalid_number":
             "❌ Please enter a number only.",
 
-        "math_wait":
-            "🧮 First, answer the current problem.",
-
         "guess_wait":
             "🎯 First, enter a number from 1 to 10."
-
     }
-
 }
 
 
@@ -714,9 +696,7 @@ TEXTS = {
 # ==================================================
 
 waiting_for_name = set()
-
 math_questions = {}
-
 guess_questions = {}
 
 
@@ -896,25 +876,18 @@ async def show_profile(query):
 # START
 # ==================================================
 
-async def start(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
 
     create_user(user.id)
 
     waiting_for_name.discard(user.id)
-
     math_questions.pop(user.id, None)
-
     guess_questions.pop(user.id, None)
 
     await update.message.reply_text(
-
         t(user.id, "welcome"),
-
         reply_markup=main_menu(user.id)
     )
 
@@ -923,10 +896,7 @@ async def start(
 # BUTTONS
 # ==================================================
 
-async def button(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
 
@@ -936,8 +906,6 @@ async def button(
 
     create_user(user.id)
 
-    data = get_user(user.id)
-
     # ==================================================
     # PROFILE
     # ==================================================
@@ -945,7 +913,6 @@ async def button(
     if query.data == "profile":
 
         await show_profile(query)
-
 
     # ==================================================
     # CHANGE NAME
@@ -959,7 +926,6 @@ async def button(
             t(user.id, "enter_name")
         )
 
-
     # ==================================================
     # GAMES
     # ==================================================
@@ -967,16 +933,12 @@ async def button(
     elif query.data == "games":
 
         math_questions.pop(user.id, None)
-
         guess_questions.pop(user.id, None)
 
         await query.edit_message_text(
-
             t(user.id, "games"),
-
             reply_markup=games_menu(user.id)
         )
-
 
     # ==================================================
     # COIN
@@ -984,9 +946,7 @@ async def button(
 
     elif query.data == "coin":
 
-        result = random.choice(
-            ["heads", "tails"]
-        )
+        result = random.choice(["heads", "tails"])
 
         if result == "heads":
 
@@ -1031,11 +991,8 @@ async def button(
             + f"{t(user.id, 'coin_count')}: "
             + f"{data['coins']}",
 
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-
 
     # ==================================================
     # DICE
@@ -1080,14 +1037,11 @@ async def button(
             + f"{t(user.id, 'points_count')}: "
             + f"{data['points']}",
 
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-
     # ==================================================
-    # MATH GAME
+    # MATH
     # ==================================================
 
     elif query.data == "math":
@@ -1113,7 +1067,6 @@ async def button(
 
             ])
         )
-
 
     # ==================================================
     # NEXT MATH
@@ -1143,17 +1096,13 @@ async def button(
             ])
         )
 
-
     # ==================================================
-    # GUESS GAME
+    # GUESS
     # ==================================================
 
     elif query.data == "guess":
 
-        secret = random.randint(
-            1,
-            10
-        )
+        secret = random.randint(1, 10)
 
         guess_questions[user.id] = secret
 
@@ -1172,7 +1121,6 @@ async def button(
 
             ])
         )
-
 
     # ==================================================
     # LANGUAGE
@@ -1213,17 +1161,12 @@ async def button(
         ]
 
         await query.edit_message_text(
-
             t(user.id, "language_title"),
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-
     # ==================================================
-    # KAZAKH
+    # LANG KK
     # ==================================================
 
     elif query.data == "lang_kk":
@@ -1235,15 +1178,12 @@ async def button(
         )
 
         await query.edit_message_text(
-
             t(user.id, "kk_selected"),
-
             reply_markup=main_menu(user.id)
         )
 
-
     # ==================================================
-    # RUSSIAN
+    # LANG RU
     # ==================================================
 
     elif query.data == "lang_ru":
@@ -1255,15 +1195,12 @@ async def button(
         )
 
         await query.edit_message_text(
-
             t(user.id, "ru_selected"),
-
             reply_markup=main_menu(user.id)
         )
 
-
     # ==================================================
-    # ENGLISH
+    # LANG EN
     # ==================================================
 
     elif query.data == "lang_en":
@@ -1275,12 +1212,9 @@ async def button(
         )
 
         await query.edit_message_text(
-
             t(user.id, "en_selected"),
-
             reply_markup=main_menu(user.id)
         )
-
 
     # ==================================================
     # ADMIN
@@ -1321,14 +1255,9 @@ async def button(
         ]
 
         await query.edit_message_text(
-
             t(user.id, "admin"),
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-
 
     # ==================================================
     # HOME
@@ -1337,15 +1266,11 @@ async def button(
     elif query.data == "home":
 
         waiting_for_name.discard(user.id)
-
         math_questions.pop(user.id, None)
-
         guess_questions.pop(user.id, None)
 
         await query.edit_message_text(
-
             t(user.id, "home"),
-
             reply_markup=main_menu(user.id)
         )
 
@@ -1372,20 +1297,17 @@ def create_math_question(user_id):
 
         text = f"{a} + {b} = ?"
 
-
     elif operation == "-":
 
         a = random.randint(1, 100)
         b = random.randint(1, 100)
 
         if b > a:
-
             a, b = b, a
 
         answer = a - b
 
         text = f"{a} - {b} = ?"
-
 
     elif operation == "*":
 
@@ -1396,23 +1318,18 @@ def create_math_question(user_id):
 
         text = f"{a} × {b} = ?"
 
-
     else:
 
         b = random.randint(2, 12)
-
         answer = random.randint(1, 12)
 
         a = b * answer
 
         text = f"{a} ÷ {b} = ?"
 
-
     math_questions[user_id] = {
-
         "text": text,
         "answer": answer
-
     }
 
 
@@ -1420,10 +1337,7 @@ def create_math_question(user_id):
 # TEXT MESSAGES
 # ==================================================
 
-async def text_message(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
+async def text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
 
@@ -1454,14 +1368,11 @@ async def text_message(
         waiting_for_name.discard(user.id)
 
         await update.message.reply_text(
-
             t(user.id, "name_saved"),
-
             reply_markup=main_menu(user.id)
         )
 
         return
-
 
     # ==================================================
     # MATH ANSWER
@@ -1509,12 +1420,8 @@ async def text_message(
             ]
 
             await update.message.reply_text(
-
                 t(user.id, "math_correct"),
-
-                reply_markup=InlineKeyboardMarkup(
-                    keyboard
-                )
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
 
             math_questions.pop(
@@ -1554,7 +1461,6 @@ async def text_message(
             )
 
         return
-
 
     # ==================================================
     # GUESS ANSWER
@@ -1615,12 +1521,8 @@ async def text_message(
             ]
 
             await update.message.reply_text(
-
                 t(user.id, "guess_correct"),
-
-                reply_markup=InlineKeyboardMarkup(
-                    keyboard
-                )
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
 
             guess_questions.pop(
@@ -1644,7 +1546,7 @@ async def text_message(
 
 
 # ==================================================
-# START DATABASE
+# DATABASE START
 # ==================================================
 
 init_db()
@@ -1656,10 +1558,6 @@ init_db()
 
 app = Application.builder().token(TOKEN).build()
 
-
-# ==================================================
-# HANDLERS
-# ==================================================
 
 app.add_handler(
     CommandHandler(
@@ -1688,9 +1586,6 @@ app.add_handler(
 # RUN
 # ==================================================
 
-print(
-    "Vireon бот іске қосылды! 🚀"
-)
+print("Vireon бот іске қосылды! 🚀")
 
-
-app.run_polling()      
+app.run_polling()                                 
