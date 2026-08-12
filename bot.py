@@ -636,7 +636,7 @@ def games_menu(user_id):
             )
         ],
 
-        [
-            InlineKeyboardButton() 
+        [] 
+            InlineKeyboardButton(
                 t(user_id, "guess"),
                 callback_data="guess"
