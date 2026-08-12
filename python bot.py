@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarku
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -10,7 +10,7 @@ from telegram.ext import (
 # 🔑 BOT TOKEN
 # =========================================================
 # BotFather берген токенді осы жерге қой:
-TOKEN = "МҰНДА_BOTFATHER_ТОКЕНІН_ҚОЙ"
+TOKEN = "8895675229:AAFT6XXbVhOdNC2kBBspWBHGVG1txzy9aNI" 
 
 # =========================================================
 # 🌐 USERS LANGUAGE
@@ -40,7 +40,7 @@ TEXTS = {
             "Қажетті тілді төмендегі батырмадан таңдаңыз."
         ),
 
-        "language_changed": "✅ Тіл қазақшаға ауыстырылды!"
+        "language_changed": "✅ Тіл қазақшаға ауыстырылды!", 
 
         "admin_text": (
             "👑 <b>Админ</b>\n\n"
